@@ -12,7 +12,7 @@ iOS app for Taiwan agricultural-wholesale-market price lookup. Built for a small
 |---|---|---|
 | 首頁 Home | ✅ shipped (003) | Hero card, 2×2 summary grid, favorite chips, recent queries |
 | 行情 Market | ✅ shipped (001) | Pick product + date range → today's prices across all wholesale markets, with range summary |
-| 成交 Vendor | ⏸️ stub | Supplier login + own-transactions query — deferred until the AMIS upstream is reverse-engineered |
+| 成交 Vendor | ✅ shipped (002) | Supplier login + today's transactions across markets, via the externally-maintained chill-api Cloud Run service. Password is biometry-gated Keychain only. |
 | 趨勢 Trend | ✅ shipped (001) | Line chart of avg price + bar chart of volume over the chosen range |
 
 Bundled crops for v1: 辣椒(朝天椒 / 紅小 / 青小 / 青龍 / 糯米椒) · 甘藍(初秋 / 改良種) · 大蒜(蒜頭) · 青蔥(日蔥) · 洋蔥(本產).
@@ -24,6 +24,7 @@ Bundled crops for v1: 辣椒(朝天椒 / 紅小 / 青小 / 青龍 / 糯米椒) �
 ├── .specify/             # Spec Kit scaffolding (constitution, templates, scripts)
 ├── specs/                # Per-feature spec/plan/tasks
 │   ├── 001-market-price-query/
+│   ├── 002-vendor-transactions/
 │   └── 003-ios-shell/
 ├── ios/
 │   ├── AgriPrice/        # Swift sources (Models / Features / Common / Networking / Resources)
@@ -110,7 +111,7 @@ Quirks the `MOAClient` absorbs:
 
 - No Xcode project committed (Windows dev env).
 - No CI yet — wire `xcodebuild test` once a macOS contributor lands the project.
-- AMIS vendor-query upstream not figured out — Vendor tab stays a stub.
+- chill-api (the vendor upstream) is maintained in a separate repo. If its request/response shape changes, the iOS app ships an update.
 
 ## License
 
