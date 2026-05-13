@@ -1,0 +1,1073 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>農產行情通｜互動式 POC</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", sans-serif;
+      background: #f2f7f1;
+      color: #17251d;
+    }
+    .page { min-height: 100vh; padding: 40px 24px; }
+    .hero {
+      max-width: 1180px;
+      margin: 0 auto 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: 20px;
+    }
+    .hero h1 { margin: 0 0 8px; font-size: 34px; letter-spacing: -0.04em; }
+    .hero p { margin: 0; color: #5f7065; }
+    .badge {
+      padding: 10px 16px;
+      border-radius: 999px;
+      background: #dff0e2;
+      color: #1e7d45;
+      font-size: 14px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+    .grid {
+      max-width: 1180px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(280px, 1fr));
+      gap: 28px;
+    }
+    .phone {
+      width: 100%;
+      max-width: 360px;
+      margin: 0 auto;
+      aspect-ratio: 390 / 844;
+      background: #101312;
+      border-radius: 42px;
+      padding: 12px;
+      box-shadow: 0 24px 60px rgba(28, 54, 35, .24);
+    }
+    .screen {
+      height: 100%;
+      background: #fbfcfb;
+      border-radius: 32px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+    .status {
+      height: 42px;
+      padding: 12px 22px 0;
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      font-weight: 800;
+    }
+    .content {
+      flex: 1;
+      min-height: 0;
+      padding: 10px 20px 16px;
+      overflow-y: auto;
+      overflow-x: hidden;
+      -webkit-overflow-scrolling: touch;
+    }
+    .appbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .appbar h2 { margin: 0; font-size: 20px; letter-spacing: -0.03em; }
+    .icon { width: 34px; height: 34px; border: 0; border-radius: 50%; background: #eef6ef; color: #1e7d45; display: grid; place-items: center; font-size: 18px; }
+    .search-card {
+      background: linear-gradient(135deg, #188046, #2eb265);
+      border-radius: 24px;
+      padding: 18px;
+      color: white;
+      box-shadow: 0 16px 32px rgba(30, 125, 69, .25);
+      margin-bottom: 16px;
+    }
+    .search-card small { opacity: .85; font-weight: 700; }
+    .search-line {
+      margin-top: 12px;
+      height: 48px;
+      border-radius: 16px;
+      background: rgba(255,255,255,.96);
+      color: #14231a;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 14px;
+      font-weight: 800;
+    }
+    .summary-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 9px;
+      margin-bottom: 14px;
+    }
+    .mini-card {
+      background: white;
+      border: 1px solid #e7eee8;
+      border-radius: 18px;
+      padding: 12px 10px;
+      box-shadow: 0 8px 18px rgba(26, 43, 32, .05);
+    }
+    .mini-card span { display: block; font-size: 11px; color: #708075; font-weight: 800; }
+    .mini-card strong { display: block; margin-top: 4px; font-size: 19px; }
+    .toolbar { display: flex; gap: 8px; margin-bottom: 12px; }
+    .pill {
+      padding: 8px 11px;
+      border-radius: 999px;
+      background: white;
+      border: 1px solid #e3ebe4;
+      font-size: 12px;
+      font-weight: 800;
+      color: #5f6f64;
+    }
+    .pill.active { background: #1e7d45; color: white; border-color: #1e7d45; }
+    .section-title { display: flex; justify-content: space-between; align-items: center; margin: 16px 0 10px; font-weight: 900; font-size: 15px; }
+    .section-title span { color: #1e7d45; font-size: 12px; }
+    .list { display: flex; flex-direction: column; gap: 9px; }
+    .market-item {
+      background: white;
+      border: 1px solid #e8eee9;
+      border-radius: 18px;
+      padding: 12px;
+      box-shadow: 0 8px 18px rgba(26, 43, 32, .05);
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      align-items: center;
+    }
+    .market-item .name { font-size: 15px; font-weight: 900; }
+    .market-item .meta { margin-top: 4px; font-size: 12px; color: #708075; }
+    .market-item .price { text-align: right; font-weight: 900; font-size: 18px; }
+    .market-item .change { margin-top: 4px; font-size: 11px; font-weight: 800; }
+    .up { color: #d92b2b; }
+    .down { color: #16874a; }
+    .bottom-bar {
+      height: 72px;
+      background: #ffffff;
+      border-top: 1px solid #e4ebe5;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      padding: 8px 12px 10px;
+      flex-shrink: 0;
+    }
+    .bottom-item {
+      border-radius: 18px;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      gap:2px;
+      color:#79857d;
+      font-size:11px;
+      font-weight:800;
+      cursor:pointer;
+      transition:.2s ease;
+    }
+    .bottom-item b {
+      font-size:20px;
+      line-height:1;
+    }
+    .bottom-item.active {
+      background:#e8f5ec;
+      color:#1e7d45;
+      box-shadow:none;
+    }
+    .feature-card {
+      background:white;
+      border:1px solid #e8eee9;
+      border-radius:24px;
+      padding:16px;
+      box-shadow:0 10px 24px rgba(26,43,32,.06);
+      margin-bottom:14px;
+    }
+    .feature-card-header {
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-start;
+      gap:12px;
+      margin-bottom:14px;
+    }
+    .feature-card-title {
+      font-size:18px;
+      font-weight:900;
+      line-height:1.3;
+    }
+    .feature-card-desc {
+      margin-top:4px;
+      font-size:12px;
+      color:#708075;
+      line-height:1.5;
+    }
+    .feature-icon {
+      width:52px;
+      height:52px;
+      border-radius:18px;
+      background:#eef7f0;
+      display:grid;
+      place-items:center;
+      font-size:26px;
+      flex-shrink:0;
+    }
+    .field { margin-bottom: 14px; }
+    .field label { display: block; margin-bottom: 7px; font-size: 13px; font-weight: 900; }
+    .input {
+      height: 48px;
+      border-radius: 15px;
+      border: 1px solid #dfe9e1;
+      background: white;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 14px;
+      font-weight: 700;
+      color: #27342b;
+    }
+    .product-sheet {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: -100%;
+      background: white;
+      border-radius: 28px 28px 0 0;
+      padding: 18px 18px 26px;
+      box-shadow: 0 -18px 40px rgba(20,35,26,.22);
+      transition: .28s ease;
+      z-index: 20;
+      max-height: 70%;
+      overflow-y: auto;
+    }
+    .product-sheet.active { bottom: 0; }
+    .sheet-backdrop {
+      position: absolute;
+      inset: 0;
+      background: rgba(13,24,18,.28);
+      opacity: 0;
+      pointer-events: none;
+      transition: .2s ease;
+      z-index: 15;
+    }
+    .sheet-backdrop.active { opacity: 1; pointer-events: auto; }
+    .sheet-handle {
+      width: 42px;
+      height: 5px;
+      border-radius: 999px;
+      background: #d7e2d9;
+      margin: 0 auto 14px;
+    }
+    .product-option {
+      width: 100%;
+      border: 0;
+      background: #f7faf7;
+      border-radius: 16px;
+      padding: 13px 14px;
+      margin-bottom: 9px;
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      text-align: left;
+      cursor: pointer;
+      gap: 8px;
+    }
+    .product-option strong { font-size: 15px; color: #17251d; }
+    .product-option span { font-size: 12px; color: #708075; font-weight: 800; }
+    .product-option.active { background: #e6f4ea; outline: 2px solid #1e7d45; }
+    
+    .favorite-star {
+      width:34px;
+      height:34px;
+      border-radius:12px;
+      border:0;
+      background:#eef6ef;
+      color:#96a49a;
+      font-size:16px;
+      cursor:pointer;
+      flex-shrink:0;
+    }
+    .favorite-star.active {
+      background:#fff3d9;
+      color:#e0a100;
+    }
+    .product-option-top {
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:10px;
+      width:100%;
+    }
+    .product-main {
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+      min-width:0;
+      flex:1;
+    }
+    .product-main strong {
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .search-card.clickable { cursor: pointer; }
+    .search-card.clickable:active { transform: scale(.99); }
+    .hint-text { font-size: 12px; color: #708075; margin-top: -6px; margin-bottom: 12px; line-height: 1.5; }
+    .date-card {
+      background: white;
+      border: 1px solid #e7eee8;
+      border-radius: 20px;
+      padding: 13px;
+      margin-bottom: 14px;
+      box-shadow: 0 8px 18px rgba(26, 43, 32, .05);
+      cursor: pointer;
+    }
+    .date-card small { display:block; color:#708075; font-size:12px; font-weight:800; margin-bottom:8px; }
+    .date-range-line { display:flex; justify-content:space-between; align-items:center; font-weight:900; font-size:15px; }
+    .date-range-line span:last-child { color:#1e7d45; }
+    .date-sheet {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: -100%;
+      background: white;
+      border-radius: 28px 28px 0 0;
+      padding: 18px 18px 26px;
+      box-shadow: 0 -18px 40px rgba(20,35,26,.22);
+      transition: .28s ease;
+      z-index: 22;
+      max-height: 70%;
+      overflow-y: auto;
+    }
+    .date-sheet.active { bottom: 0; }
+    .date-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px; }
+    .date-box { background:#f7faf7; border:1px solid #e4ece5; border-radius:16px; padding:12px; }
+    .date-box label { display:block; font-size:12px; color:#708075; font-weight:900; margin-bottom:6px; }
+    .date-box input { width:100%; border:0; background:transparent; font-weight:900; color:#17251d; outline:none; font-size:13px; }
+    .range-presets { display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap; }
+    .range-presets button { border:1px solid #dfe9e1; background:#f7faf7; border-radius:999px; padding:8px 12px; font-weight:900; color:#46554b; cursor:pointer; }
+    .range-presets button.active { background:#1e7d45; color:white; border-color:#1e7d45; }
+    .btn {
+      width: 100%; height: 50px; border: 0; border-radius: 16px;
+      background: #1e7d45; color: white; font-weight: 900; font-size: 15px;
+      box-shadow: 0 12px 22px rgba(30,125,69,.22);
+      margin: 8px 0 16px;
+    }
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+    .chip { background: white; border: 1px solid #dfe9e1; border-radius: 999px; padding: 9px 12px; font-size: 13px; font-weight: 800; }
+    .result-head { display: flex; gap: 12px; align-items: center; margin-bottom: 14px; }
+    .emoji { width: 56px; height: 56px; border-radius: 18px; background: #f0f7f1; display: grid; place-items: center; font-size: 34px; }
+    .result-head h3 { margin: 0 0 4px; font-size: 20px; }
+    .result-head p { margin: 0; color: #6f7d73; font-size: 13px; }
+    .rank-card { background: white; border: 1px solid #e8eee9; border-radius: 20px; padding: 14px; margin-bottom: 13px; box-shadow: 0 8px 20px rgba(26,43,32,.05); }
+    .rank-row { display: flex; justify-content: space-between; align-items: center; padding: 9px 0; border-bottom: 1px solid #eef3ef; font-size: 14px; }
+    .rank-row:last-child { border-bottom: 0; }
+    .rank-row strong { font-size: 16px; }
+    .chart-card { background: white; border: 1px solid #e8eee9; border-radius: 22px; padding: 15px; box-shadow: 0 8px 20px rgba(26,43,32,.05); }
+    .seg { display: grid; grid-template-columns: repeat(3,1fr); background: #edf5ee; padding: 4px; border-radius: 999px; gap: 4px; margin-bottom: 13px; }
+    .seg div { text-align: center; padding: 8px 0; border-radius: 999px; font-size: 12px; font-weight: 900; color: #66766c; }
+    .seg .on { background: #1e7d45; color: white; }
+    .chart { height: 172px; border-radius: 14px; position: relative; overflow: hidden; background: linear-gradient(#eef3ef 1px, transparent 1px) 0 0/100% 34px, linear-gradient(90deg,#eef3ef 1px,transparent 1px) 0 0/48px 100%; }
+    .chart svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+    .note { font-size: 12px; color: #78857d; line-height: 1.6; margin-top: 10px; }
+    .wide {
+      max-width: 1180px;
+      margin: 28px auto 0;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+    .panel { background: white; border: 1px solid #e0e9e2; border-radius: 24px; padding: 22px; box-shadow: 0 12px 30px rgba(28,54,35,.08); }
+    .panel h3 { margin: 0 0 14px; }
+    .flow { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; color: #1e7d45; font-weight: 900; }
+    .flow .box { color: #17251d; background: #f3f8f4; border-radius: 16px; padding: 14px 16px; }
+    .spec { display: grid; gap: 10px; font-size: 14px; color: #46554b; }
+    .spec b { color: #17251d; }
+    .poc-wrapper { max-width: 420px; margin: 0 auto 40px; }
+    .single-phone { width: 100%; max-width: 390px; margin: 0 auto; aspect-ratio: 390 / 844; background: #101312; border-radius: 42px; padding: 12px; box-shadow: 0 24px 60px rgba(28, 54, 35, .24); }
+    .single-screen {
+      height: 100%;
+      background: #fbfcfb;
+      border-radius: 32px;
+      overflow: hidden;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+    }
+    .home-hero {
+      background: linear-gradient(135deg, #188046 0%, #2eb265 100%);
+      border-radius: 30px;
+      padding: 20px;
+      color: white;
+      box-shadow: 0 18px 36px rgba(47,125,70,.22);
+      margin-bottom: 16px;
+      position: relative;
+      overflow: hidden;
+    }
+    .home-hero:after {
+      content: "";
+      position: absolute;
+      width: 150px;
+      height: 150px;
+      right: -46px;
+      top: -52px;
+      border-radius: 50%;
+      background: rgba(255,255,255,.13);
+    }
+    .home-hero-top {
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-start;
+      position:relative;
+      z-index:1;
+    }
+    .home-hero small { opacity:.82; font-weight:800; }
+    .home-product { margin-top:10px; font-size:24px; font-weight:950; letter-spacing:-.03em; }
+    .home-price-row {
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-end;
+      gap:12px;
+      margin-top:22px;
+      position:relative;
+      z-index:1;
+    }
+    .home-price-label { font-size:12px; opacity:.82; font-weight:800; margin-bottom:4px; }
+    .home-price { font-size:42px; font-weight:950; line-height:.95; letter-spacing:-.06em; }
+    .home-change {
+      padding:8px 12px;
+      border-radius:999px;
+      background:rgba(255,255,255,.18);
+      font-size:18px;
+      font-weight:950;
+    }
+    .home-stat-strip {
+      display:grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap:8px;
+      margin-bottom: 18px;
+    }
+    .home-stat {
+      background: #ffffff;
+      border:1px solid #e7eee8;
+      border-radius:18px;
+      padding:11px 10px;
+      backdrop-filter: blur(8px);
+    }
+    .home-stat span { display:block; color:#718176; font-size:11px; font-weight:850; }
+    .home-stat strong { display:block; margin-top:5px; font-size:18px; font-weight:950; }
+    .primary-actions { display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:18px; }
+    .action-card {
+      border:1px solid #e8eee9;
+      background:white;
+      border-radius:24px;
+      padding:16px 14px;
+      text-align:left;
+      box-shadow:0 12px 26px rgba(52,63,50,.08);
+      cursor:pointer;
+      min-height:132px;
+      display:flex;
+      flex-direction:column;
+      justify-content:space-between;
+    }
+    .action-icon {
+      width:42px;
+      height:42px;
+      border-radius:16px;
+      display:grid;
+      place-items:center;
+      background:#edf6ee;
+      color:#2f7d46;
+      font-size:20px;
+      font-weight:950;
+      margin-bottom:12px;
+    }
+    .action-card strong { display:block; font-size:16px; line-height:1.25; color:#17251d; }
+    .action-card span { display:block; margin-top:5px; font-size:12px; line-height:1.45; color:#718176; font-weight:700; }
+    .home-section-title { margin: 6px 0 10px; font-size:15px; font-weight:950; display:flex; justify-content:space-between; align-items:center; }
+    .home-section-title span { font-size:12px; color:#2f7d46; }
+    .favorite-row { display:flex; gap:9px; overflow-x:auto; padding-bottom:4px; }
+    .favorite-chip {
+      flex: 0 0 auto;
+      min-width: 118px;
+      background:white;
+      border:1px solid #e4ece1;
+      border-radius:20px;
+      padding:12px;
+      box-shadow:0 8px 18px rgba(52,63,50,.06);
+      cursor:pointer;
+    }
+    .favorite-chip strong { display:block; font-size:14px; color:#17251d; }
+    .favorite-chip span { display:block; margin-top:5px; font-size:12px; color:#718176; font-weight:800; }
+    .view {
+      display: none;
+      flex: 1;
+      min-height: 0;
+    }
+    .view.active {
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      flex: 1;
+    }
+    .clickable { cursor: pointer; transition: .2s ease; }
+    .clickable:hover { transform: translateY(-2px); border-color: #1e7d45; }
+    .top-tabs { display:flex; gap:8px; margin-top:14px; flex-wrap:wrap; }
+    .top-tab { padding:10px 14px; border-radius:999px; background:white; border:1px solid #dce7de; font-size:13px; font-weight:800; cursor:pointer; }
+    .top-tab.active { background:#1e7d45; color:white; border-color:#1e7d45; }
+    @media (max-width: 980px) {
+      .grid { grid-template-columns: 1fr; }
+      .wide { grid-template-columns: 1fr; }
+      .hero { flex-direction: column; align-items: flex-start; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="hero">
+      <div>
+        <h1>農產行情通 Mockup</h1>
+        <p>以「同一品項一次看所有市場」＋「供應商今日成交查詢」為核心，適合親朋好友私用版。</p>
+      </div>
+      <div class="badge">行情查詢 + 成交查詢 + 本機保存</div>
+    </section>
+
+    <section class="poc-wrapper">
+      <div class="top-tabs">
+        <div class="top-tab active" onclick="showView('home', this)">首頁</div>
+        <div class="top-tab" onclick="showView('market', this)">行情</div>
+        <div class="top-tab" onclick="showView('vendor', this)">成交</div>
+        <div class="top-tab" onclick="showView('trend', this)">趨勢</div>
+      </div>
+
+      <div class="single-phone">
+        <div class="single-screen">
+
+          <div class="view active" id="view-home">
+            <div class="status"><span>9:41</span><span>5G ▰</span></div>
+            <div class="content">
+              <div class="appbar"><h2>農產行情通</h2><button class="icon">⚙</button></div>
+
+              <div class="home-hero clickable" onclick="showView('market')">
+                <div class="home-hero-top">
+                  <div>
+                    <small>今日最關注行情</small>
+                    <div class="home-product">FV4 朝天椒</div>
+                  </div>
+                  <div class="home-change">+17%</div>
+                </div>
+                <div class="home-price-row">
+                  <div>
+                    <div class="home-price-label">全市場均價</div>
+                    <div class="home-price">82</div>
+                  </div>
+                  <div style="text-align:right;font-size:12px;font-weight:800;opacity:.86;line-height:1.6;">
+                    最高 台北一市 95<br />最低 高雄市 62
+                  </div>
+                </div>
+              </div>
+
+              <div class="home-stat-strip">
+                <div class="home-stat"><span>市場數</span><strong>18</strong></div>
+                <div class="home-stat"><span>成交總額</span><strong>12,860</strong></div>
+                <div class="home-stat"><span>總重量</span><strong>168kg</strong></div>
+              </div>
+
+              <div class="primary-actions">
+                <button class="action-card" onclick="showView('market')">
+                  <div>
+                    <div class="action-icon">↗</div>
+                    <strong>市場行情</strong>
+                    <span>用代號查全部市場價格</span>
+                  </div>
+                </button>
+                <button class="action-card" onclick="showView('vendor')">
+                  <div>
+                    <div class="action-icon">$</div>
+                    <strong>今日成交</strong>
+                    <span>查實際賣多少錢</span>
+                  </div>
+                </button>
+              </div>
+
+              <div class="home-section-title">常用品項 <span>點一下查行情</span></div>
+              <div class="favorite-row">
+                <div class="favorite-chip" onclick="quickSelectProduct('FV4')"><strong>FV4</strong><span>朝天椒</span></div>
+                <div class="favorite-chip" onclick="quickSelectProduct('FV1')"><strong>FV1</strong><span>紅小辣椒</span></div>
+                <div class="favorite-chip" onclick="quickSelectProduct('LA1')"><strong>LA1</strong><span>甘藍初秋</span></div>
+                <div class="favorite-chip" onclick="quickSelectProduct('SG5')"><strong>SG5</strong><span>大蒜蒜頭</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="view" id="view-market">
+            <div class="status"><span>9:41</span><span>5G ▰</span></div>
+            <div class="content">
+              <div class="appbar"><button class="icon" onclick="showView('home')">‹</button><h2>今日行情</h2><button class="icon">☆</button></div>
+              <div class="search-card clickable" onclick="openProductSheet()">
+                <small>目前查詢品項｜點此更換</small>
+                <div class="search-line"><span id="marketProductLabel">FV4｜辣椒 朝天椒</span><span>▼</span></div>
+              </div>
+              <div class="hint-text">點綠色卡片選擇 AMIS 官方品項代號；正式版會把完整代號表放在 App 本機。</div>
+
+              <div class="date-card clickable" onclick="openDateSheet()">
+                <small>查詢日期區間</small>
+                <div class="date-range-line"><span id="dateRangeLabel">2026/05/13 ～ 2026/05/13</span><span>更改</span></div>
+              </div>
+
+              <div class="summary-row">
+                <div class="mini-card"><span>區間最高</span><strong class="up">95</strong></div>
+                <div class="mini-card"><span>區間均價</span><strong>82</strong></div>
+                <div class="mini-card"><span>區間最低</span><strong class="down">62</strong></div>
+              </div>
+              <div class="list">
+                <div class="market-item clickable" onclick="showView('trend')"><div><div class="name">台北一市</div><div class="meta">上95｜中82｜下70</div></div><div><div class="price up">82</div><div class="change up">↑17%</div></div></div>
+                <div class="market-item"><div><div class="name">板橋區</div><div class="meta">上90｜中78｜下66</div></div><div><div class="price">78</div><div class="change up">↑8%</div></div></div>
+                <div class="market-item"><div><div class="name">台中市</div><div class="meta">上82｜中70｜下58</div></div><div><div class="price">70</div><div class="change down">↓2%</div></div></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="view" id="view-vendor">
+            <div class="status"><span>9:41</span><span>5G ▰</span></div>
+            <div class="content">
+              <div class="appbar"><button class="icon" onclick="showView('home')">‹</button><h2>今日成交查詢</h2><button class="icon">?</button></div>
+              <div class="field"><label>供應商代號</label><div class="input"><span>A12345</span></div></div>
+              <div class="field"><label>小代號</label><div class="input"><span>001</span></div></div>
+              <div class="field"><label>密碼</label><div class="input"><span>••••••••</span></div></div>
+              <button class="btn" onclick="showView('vendor-result')">查詢今天賣多少錢</button>
+            </div>
+          </div>
+
+          <div class="view" id="view-vendor-result">
+            <div class="status"><span>9:41</span><span>5G ▰</span></div>
+            <div class="content">
+              <div class="appbar"><button class="icon" onclick="showView('vendor')">‹</button><h2>今日成交</h2><button class="icon">↗</button></div>
+              <div class="summary-row">
+                <div class="mini-card"><span>總額</span><strong class="up">12,860</strong></div>
+                <div class="mini-card"><span>重量</span><strong>168kg</strong></div>
+                <div class="mini-card"><span>均價</span><strong>76.5</strong></div>
+              </div>
+              <div class="section-title">各市場成交</div>
+              <div class="list">
+                <div class="market-item clickable" onclick="showView('vendor-market-detail')">
+                  <div><div class="name">台北一市</div><div class="meta">3 件｜88kg｜平均 82.0/kg</div></div>
+                  <div><div class="price up">7,216</div><div class="change">點看明細</div></div>
+                </div>
+                <div class="market-item clickable" onclick="showView('vendor-market-detail')">
+                  <div><div class="name">板橋區</div><div class="meta">2 件｜45kg｜平均 76.0/kg</div></div>
+                  <div><div class="price">3,420</div><div class="change">點看明細</div></div>
+                </div>
+                <div class="market-item clickable" onclick="showView('vendor-market-detail')">
+                  <div><div class="name">台中市</div><div class="meta">1 件｜35kg｜平均 63.5/kg</div></div>
+                  <div><div class="price down">2,224</div><div class="change">點看明細</div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="view" id="view-vendor-market-detail">
+            <div class="status"><span>9:41</span><span>5G ▰</span></div>
+            <div class="content">
+              <div class="appbar"><button class="icon" onclick="showView('vendor-result')">‹</button><h2>台北一市明細</h2><button class="icon">↗</button></div>
+              <div class="rank-card">
+                <div class="rank-row"><span>市場成交總額</span><strong class="up">7,216</strong></div>
+                <div class="rank-row"><span>成交件數</span><strong>3 件</strong></div>
+                <div class="rank-row"><span>總重量</span><strong>88 kg</strong></div>
+                <div class="rank-row"><span>平均單價</span><strong>82.0/kg</strong></div>
+              </div>
+              <div class="section-title">各件成交金額</div>
+              <div class="list">
+                <div class="market-item">
+                  <div><div class="name">#001 朝天椒</div><div class="meta">等級 A｜30kg × 85/kg</div></div>
+                  <div class="price up">2,550</div>
+                </div>
+                <div class="market-item">
+                  <div><div class="name">#002 朝天椒</div><div class="meta">等級 B｜28kg × 80/kg</div></div>
+                  <div class="price">2,240</div>
+                </div>
+                <div class="market-item">
+                  <div><div class="name">#003 辣椒</div><div class="meta">等級 A｜30kg × 80.9/kg</div></div>
+                  <div class="price">2,426</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="view" id="view-trend">
+            <div class="status"><span>9:41</span><span>5G ▰</span></div>
+            <div class="content">
+              <div class="appbar"><button class="icon" onclick="showView('market')">‹</button><h2>趨勢分析</h2><button class="icon">⋯</button></div>
+
+              <div class="result-head">
+                <div class="emoji">🌶️</div>
+                <div>
+                  <h3 id="trendProductTitle">FV4｜辣椒 朝天椒</h3>
+                  <p id="trendRangeText">全部市場｜台北一市｜2026/05/13～2026/05/13</p>
+                </div>
+              </div>
+
+              <div class="date-card clickable" onclick="openDateSheet()">
+                <small>趨勢日期區間</small>
+                <div class="date-range-line"><span id="trendDateRangeLabel">2026/05/13 ～ 2026/05/13</span><span>更改</span></div>
+              </div>
+
+              <div class="toolbar">
+                <div class="pill active">均價</div>
+                <div class="pill">交易量</div>
+                <div class="pill">市場比較</div>
+              </div>
+
+              <div class="chart-card">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                  <strong>價格趨勢</strong>
+                  <span style="font-size:12px;color:#708075;">單位：元/kg</span>
+                </div>
+                <div class="chart">
+                  <svg viewBox="0 0 300 172" preserveAspectRatio="none">
+                    <polyline points="12,132 54,118 96,102 138,82 180,72 222,54 288,50" fill="none" stroke="#1e7d45" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+                    <polyline points="12,145 54,136 96,120 138,110 180,100 222,92 288,88" fill="none" stroke="#d92b2b" stroke-width="3" stroke-dasharray="7 6" stroke-linecap="round" />
+                    <polyline points="12,152 54,148 96,138 138,126 180,118 222,114 288,110" fill="none" stroke="#7a8b80" stroke-width="3" stroke-dasharray="5 5" stroke-linecap="round" />
+                  </svg>
+                </div>
+                <div class="note">
+                  綠線：全市場平均｜紅線：台北一市｜灰線：台中市
+                </div>
+              </div>
+
+              <div class="summary-row" style="margin-top:14px;">
+                <div class="mini-card">
+                  <span>30日最高</span>
+                  <strong class="up">95</strong>
+                </div>
+                <div class="mini-card">
+                  <span>30日平均</span>
+                  <strong>75.3</strong>
+                </div>
+                <div class="mini-card">
+                  <span>30日最低</span>
+                  <strong class="down">58</strong>
+                </div>
+              </div>
+
+              <div class="chart-card">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                  <strong>交易量趨勢</strong>
+                  <span style="font-size:12px;color:#708075;">單位：kg</span>
+                </div>
+                <div class="chart">
+                  <svg viewBox="0 0 300 172" preserveAspectRatio="none">
+                    <rect x="18" y="120" width="18" height="40" rx="4" fill="#2eb265" />
+                    <rect x="56" y="90" width="18" height="70" rx="4" fill="#2eb265" />
+                    <rect x="94" y="74" width="18" height="86" rx="4" fill="#2eb265" />
+                    <rect x="132" y="60" width="18" height="100" rx="4" fill="#2eb265" />
+                    <rect x="170" y="42" width="18" height="118" rx="4" fill="#2eb265" />
+                    <rect x="208" y="70" width="18" height="90" rx="4" fill="#2eb265" />
+                    <rect x="246" y="96" width="18" height="64" rx="4" fill="#2eb265" />
+                  </svg>
+                </div>
+                <div class="note">
+                  近 30 日成交量變化，可觀察供貨量與價格波動關係。
+                </div>
+              </div>
+
+              <div class="section-title">市場比較</div>
+              <div class="list">
+                <div class="market-item clickable">
+                  <div>
+                    <div class="name">台北一市</div>
+                    <div class="meta">目前最高價市場｜近7日持續上升</div>
+                  </div>
+                  <div>
+                    <div class="price up">95</div>
+                    <div class="change up">+17%</div>
+                  </div>
+                </div>
+
+                <div class="market-item clickable">
+                  <div>
+                    <div class="name">板橋區</div>
+                    <div class="meta">交易量穩定｜價格略高於平均</div>
+                  </div>
+                  <div>
+                    <div class="price">78</div>
+                    <div class="change up">+8%</div>
+                  </div>
+                </div>
+
+                <div class="market-item clickable">
+                  <div>
+                    <div class="name">台中市</div>
+                    <div class="meta">價格下降｜供貨量增加</div>
+                  </div>
+                  <div>
+                    <div class="price down">70</div>
+                    <div class="change down">-2%</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="rank-card" style="margin-top:16px;">
+                <div class="rank-row"><span>AI 趨勢分析</span><strong class="up">偏多</strong></div>
+                <div class="rank-row"><span>可能原因</span><strong>供貨減少</strong></div>
+                <div class="rank-row"><span>建議觀察</span><strong>台北一市量價</strong></div>
+              </div>
+
+            </div>
+          </div>
+          <div class="sheet-backdrop" id="sheetBackdrop" onclick="closeProductSheet()"></div>
+          <div class="product-sheet" id="productSheet">
+            <div class="sheet-handle"></div>
+            <div class="section-title" style="margin-top:0;">選擇品項代號 <span>常用會排最前面</span></div>
+            <div class="product-option active favorite" data-code="FV4" onclick="chooseProduct('FV4')">
+              <div class="product-option-top">
+                <div class="product-main">
+                  <strong>FV4 辣椒 朝天椒</strong>
+                  
+                </div>
+                <button type="button" class="favorite-star active" onclick="toggleFavorite(event, 'FV4')">★</button>
+              </div>
+            </div>
+            <div class="product-option favorite" data-code="FV1" onclick="chooseProduct('FV1')">
+              <div class="product-option-top">
+                <div class="product-main">
+                  <strong>FV1 辣椒 紅小</strong>
+                  
+                </div>
+                <button type="button" class="favorite-star active" onclick="toggleFavorite(event, 'FV1')">★</button>
+              </div>
+            </div>
+            <div class="product-option" data-code="FV2" onclick="chooseProduct('FV2')">
+              <div class="product-option-top">
+                <div class="product-main">
+                  <strong>FV2 辣椒 青小</strong>
+                  <span>辣椒</span>
+                </div>
+                <button type="button" class="favorite-star" onclick="toggleFavorite(event, 'FV2')">☆</button>
+              </div>
+            </div>
+            <button class="product-option" data-code="FV5" onclick="chooseProduct('FV5')"><strong>FV5 辣椒 青龍</strong><span>辣椒</span></button>
+            <button class="product-option" data-code="FV6" onclick="chooseProduct('FV6')"><strong>FV6 辣椒 糯米椒</strong><span>辣椒</span></button>
+            <button class="product-option" data-code="LA1" onclick="chooseProduct('LA1')"><strong>LA1 甘藍 初秋</strong><span>葉菜</span></button>
+            <button class="product-option" data-code="LA2" onclick="chooseProduct('LA2')"><strong>LA2 甘藍 改良種</strong><span>葉菜</span></button>
+            <button class="product-option" data-code="SG5" onclick="chooseProduct('SG5')"><strong>SG5 大蒜 蒜頭</strong><span>根莖</span></button>
+            <button class="product-option" data-code="SE1" onclick="chooseProduct('SE1')"><strong>SE1 青蔥 日蔥</strong><span>根莖</span></button>
+            <button class="product-option" data-code="SD1" onclick="chooseProduct('SD1')"><strong>SD1 洋蔥 本產</strong><span>根莖</span></button>
+          </div>
+
+          <div class="date-sheet" id="dateSheet">
+            <div class="sheet-handle"></div>
+            <div class="section-title" style="margin-top:0;">選擇日期區間 <span>AMIS</span></div>
+            <div class="range-presets">
+              <button type="button" class="active" onclick="setPresetRange(event, 'today')">今天</button>
+              <button type="button" onclick="setPresetRange(event, 'month')">本月</button>
+              <button type="button" onclick="setPresetRange(event, '7d')">近7日</button>
+              <button type="button" onclick="setPresetRange(event, '30d')">近30日</button>
+              <button type="button" onclick="setPresetRange(event, '90d')">近90日</button>
+            </div>
+            <div class="date-grid">
+              <div class="date-box">
+                <label>開始日期</label>
+                <input type="date" id="startDate" value="2026-05-13" />
+              </div>
+              <div class="date-box">
+                <label>結束日期</label>
+                <input type="date" id="endDate" value="2026-05-13" />
+              </div>
+            </div>
+            <button type="button" class="btn" onclick="applyDateRange()">套用日期區間</button>
+          </div>
+
+                  <div class="bottom-bar">
+            <div class="bottom-item active" onclick="showView('home')">
+              <b>⌂</b>
+              首頁
+            </div>
+            <div class="bottom-item" onclick="showView('market')">
+              <b>📈</b>
+              行情
+            </div>
+            <div class="bottom-item" onclick="showView('vendor')">
+              <b>🧾</b>
+              成交
+            </div>
+            <div class="bottom-item" onclick="showView('trend')">
+              <b>📊</b>
+              趨勢
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <section class="wide">
+      <div class="panel">
+        <h3>核心流程</h3>
+        <div class="flow">
+          <div class="box">選品項</div><span>→</span>
+          <div class="box">查全部市場</div><span>→</span>
+          <div class="box">市場排序</div><span>→</span>
+          <div class="box">供應商成交查詢</div><span>→</span>
+          <div class="box">本機保存紀錄</div>
+        </div>
+      </div>
+      <div class="panel">
+        <h3>技術方案</h3>
+        <div class="spec">
+          <div><b>iOS：</b>SwiftUI、SwiftData、Swift Charts</div>
+          <div><b>後端：</b>FastAPI on Cloud Run，只做 AMIS Proxy / Parser</div>
+          <div><b>資料：</b>不使用 GCP DB，歷史行情存在 iPhone 本機</div>
+          <div><b>查詢邏輯 A：</b>AMIS 品項代號 + 日期區間 → 回傳所有市場清單；預設為今天～今天，例如 FV4 = 辣椒 朝天椒</div>
+          <div><b>查詢邏輯 B：</b>供應商代號 + 小代號 + 密碼 + 日期 → 回傳各市場成交總額，再可點進市場查看各件金額明細</div>
+          <div><b>安全設計：</b>密碼不進 GCP 資料庫；iOS 若要記住登入，使用 Keychain，不用 UserDefaults</div>
+        </div>
+      </div>
+    </section>
+  </main>
+  <script>
+    const productMap = {
+      FV4: 'FV4｜辣椒 朝天椒',
+      FV1: 'FV1｜辣椒 紅小',
+      FV2: 'FV2｜辣椒 青小',
+      FV5: 'FV5｜辣椒 青龍',
+      FV6: 'FV6｜辣椒 糯米椒',
+      LA1: 'LA1｜甘藍 初秋',
+      LA2: 'LA2｜甘藍 改良種',
+      SG5: 'SG5｜大蒜 蒜頭',
+      SE1: 'SE1｜青蔥 日蔥',
+      SD1: 'SD1｜洋蔥 本產'
+    };
+
+    function setProduct(code) {
+      const label = productMap[code] || productMap.FV4;
+      const marketLabel = document.getElementById('marketProductLabel');
+      const trendTitle = document.getElementById('trendProductTitle');
+
+      if (marketLabel) marketLabel.textContent = label;
+      if (trendTitle) trendTitle.textContent = label;
+      document.querySelectorAll('.product-option').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.code === code);
+      });
+    }
+    function openProductSheet() {
+      document.getElementById('sheetBackdrop').classList.add('active');
+      document.getElementById('productSheet').classList.add('active');
+    }
+
+    function closeProductSheet() {
+      document.getElementById('sheetBackdrop').classList.remove('active');
+      document.getElementById('productSheet').classList.remove('active');
+      const dateSheet = document.getElementById('dateSheet');
+      if (dateSheet) dateSheet.classList.remove('active');
+    }
+
+    function openDateSheet() {
+      document.getElementById('sheetBackdrop').classList.add('active');
+      document.getElementById('dateSheet').classList.add('active');
+    }
+
+    function formatDateText(value) {
+      return value.replaceAll('-', '/');
+    }
+
+    function applyDateRange() {
+      const start = document.getElementById('startDate').value;
+      const end = document.getElementById('endDate').value;
+      const label = `${formatDateText(start)} ～ ${formatDateText(end)}`;
+
+      const dateRangeLabel = document.getElementById('dateRangeLabel');
+      const trendDateRangeLabel = document.getElementById('trendDateRangeLabel');
+      const trendRangeText = document.getElementById('trendRangeText');
+
+      if (dateRangeLabel) dateRangeLabel.textContent = label;
+      if (trendDateRangeLabel) trendDateRangeLabel.textContent = label;
+      if (trendRangeText) trendRangeText.textContent = `全部市場｜台北一市｜${label.replace(' ～ ', '～')}`;
+
+      closeProductSheet();
+    }
+
+    function setPresetRange(event, type) {
+      document.querySelectorAll('.range-presets button').forEach(btn => btn.classList.remove('active'));
+      event.currentTarget.classList.add('active');
+
+      const ranges = {
+        today: ['2026-05-13', '2026-05-13'],
+        month: ['2026-05-01', '2026-05-13'],
+        '7d': ['2026-05-07', '2026-05-13'],
+        '30d': ['2026-04-14', '2026-05-13'],
+        '90d': ['2026-02-13', '2026-05-13']
+      };
+
+      const selected = ranges[type] || ranges.today;
+      document.getElementById('startDate').value = selected[0];
+      document.getElementById('endDate').value = selected[1];
+    }
+
+    function chooseProduct(code) {
+      setProduct(code);
+      closeProductSheet();
+    }
+
+    function toggleFavorite(event, code) {
+      event.stopPropagation();
+      const btn = event.currentTarget;
+      const option = btn.closest('.product-option');
+      const isActive = btn.classList.contains('active');
+
+      btn.classList.toggle('active');
+      btn.textContent = isActive ? '☆' : '★';
+
+      if (isActive) {
+        option.classList.remove('favorite');
+      } else {
+        option.classList.add('favorite');
+      }
+
+      sortProducts();
+    }
+
+    function sortProducts() {
+      const sheet = document.getElementById('productSheet');
+      const items = [...sheet.querySelectorAll('.product-option')];
+      items.sort((a, b) => {
+        const af = a.classList.contains('favorite') ? 1 : 0;
+        const bf = b.classList.contains('favorite') ? 1 : 0;
+        return bf - af;
+      });
+      items.forEach(item => sheet.appendChild(item));
+    }
+
+    function quickSelectProduct(code) {
+      setProduct(code);
+      showView('market');
+    }
+
+    function showView(viewName, el) {
+      document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+      const target = document.getElementById('view-' + viewName);
+      if (target) target.classList.add('active');
+
+      document.querySelectorAll('.top-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.bottom-item').forEach(t => t.classList.remove('active'));
+
+      const mapping = {
+        home: 0,
+        market: 1,
+        vendor: 2,
+        trend: 3,
+        'vendor-result': 2,
+        'vendor-market-detail': 2
+      };
+
+      const idx = mapping[viewName];
+      const topTabs = document.querySelectorAll('.top-tab');
+      const bottomTabs = document.querySelectorAll('.bottom-item');
+
+      if (topTabs[idx]) topTabs[idx].classList.add('active');
+      if (bottomTabs[idx]) bottomTabs[idx].classList.add('active');
+
+      if (el) el.classList.add('active');
+    }
+  </script>
+</body>
+</html>
