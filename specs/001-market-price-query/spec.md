@@ -13,7 +13,7 @@ A vegetable supplier opens AgriPrice in the morning, picks `FV4 辣椒 朝天椒
 
 **Why this priority**: This is the single most-used query for the family/friends user base — "what did my crop go for today, everywhere?". Without it the app has no reason to exist.
 
-**Independent Test**: With the FastAPI proxy stubbed (or pointed at the real MOA endpoint for today), open the iOS Market tab, pick a product, and confirm the screen renders one row per market plus the summary card. Delivers value even if Trend (Story 2) and favorites (Story 3) are absent.
+**Independent Test**: Open the iOS Market tab on a network-connected simulator, pick a product, and confirm the screen renders one row per market plus the summary card. (The MOA upstream is live and free; no test harness needed.) Delivers value even if Trend (Story 2) and favorites (Story 3) are absent.
 
 **Acceptance Scenarios**:
 
@@ -58,7 +58,7 @@ A user who tracks the same 3–5 crops every day stars them once; from then on t
 
 ### Edge Cases
 
-- **MOA returns ROC-formatted dates** in the response (e.g. `107.07.01`) — the iOS layer must never see ROC dates; the proxy is responsible for converting both directions.
+- **MOA returns ROC-formatted dates** in the response (e.g. `107.07.01`) — the Swift `MOAClient` is responsible for ISO ↔ ROC conversion in both directions. UI / SwiftData layers only ever see `Date` / ISO strings.
 - **Crop has no transactions on a chosen date** (weekend/holiday/off-season) — show empty state per Story 1 #2, not an error.
 - **Some markets traded, others didn't** — render only the markets that returned rows; the summary high/avg/low is over those markets only.
 - **Date range spans a market closure window** — gaps in trend chart are rendered as broken lines, not zero-imputed.
@@ -79,9 +79,9 @@ A user who tracks the same 3–5 crops every day stars them once; from then on t
 - **FR-007**: System MUST let the user star/unstar any product; starred products MUST sort to the top of the picker and persist across app launches.
 - **FR-008**: System MUST cache successful query results in SwiftData (`MarketPriceRecord`) so the most recent result is visible offline.
 - **FR-009**: System MUST surface the user's recent queries (last N, where N ≥ 5) so they can be re-run with one tap.
-- **FR-010**: API proxy MUST convert ISO `YYYY-MM-DD` to ROC `民國YYY.MM.DD` when calling the MOA upstream, and map the request param `product_code` → `CropCode`.
-- **FR-011**: API proxy MUST normalize the MOA response into the unified `{success, data, error}` envelope defined in dev spec §9.
-- **FR-012**: API proxy MUST return a typed error (`AMIS_QUERY_FAILED`, `AMIS_PARSE_FAILED`, `NETWORK_ERROR`, `INVALID_DATE_RANGE`, `INVALID_PRODUCT_CODE`, `UNKNOWN_ERROR`) rather than leaking upstream HTML/HTTP failures.
+- **FR-010**: iOS `MOAClient` MUST convert ISO `YYYY-MM-DD` to ROC `YYY.MM.DD` (year = Gregorian − 1911, zero-padded month/day, dots as separators) when building the request URL, using `CropCode` as the upstream parameter name.
+- **FR-011**: iOS `MOAClient` MUST decode the MOA `{RS, Data}` response into Swift values and normalize each row to ISO `Date` + the internal `MarketPriceRecord` shape from dev spec §7.2.
+- **FR-012**: iOS networking layer MUST map any failure into a typed `ErrorCode` (`NETWORK_ERROR`, `MOA_PARSE_FAILED`, `INVALID_DATE_RANGE`, `INVALID_PRODUCT_CODE`, `UNKNOWN_ERROR`) and surface only the dev-spec §18 zh-Hant message to the user — never the underlying `URLError`, status code, or JSON decode error.
 
 ### Key Entities
 
@@ -103,9 +103,10 @@ A user who tracks the same 3–5 crops every day stars them once; from then on t
 
 ## Assumptions
 
-- The MOA open-data endpoint `https://data.moa.gov.tw/api/v1/AgriProductsTransType/` is stable and free (no API key required) for the AgriPrice usage volume. If MOA introduces rate limits or auth, the proxy is the only place that needs to change.
-- The v1 product code list can be **bundled into the iOS app** (dev spec §12.1 note). `/api/v1/products` is therefore not on the critical path for this feature.
+- The MOA open-data endpoint `https://data.moa.gov.tw/api/v1/AgriProductsTransType/` is stable and free (no API key required) for the AgriPrice usage volume. If MOA introduces rate limits or auth, the iOS app ships an update with a new auth header or — if a secret cannot live in the binary — Constitution II must be revisited.
+- The v1 product code list is **bundled into the iOS app** (dev spec §12.1 note). There is no remote product catalog to fetch.
 - Users have iOS 17+ (required for SwiftData).
-- "Trend" in Story 2 reuses the same MOA endpoint with a wider date range — there is no separate trend data source. The proxy may add a `/market-prices/trend` shape but the upstream call is the same.
-- The user is on LTE or Wi-Fi; offline-first design is limited to "show the last successful query"; we do not pre-fetch background data.
+- "Trend" in Story 2 reuses the same MOA endpoint with a wider date range — there is no separate trend data source. The trend view aggregates the same response, grouped by trade date.
+- The user is on LTE or Wi-Fi; offline-first design is limited to "show the last successful query from SwiftData cache"; we do not pre-fetch background data.
 - The bundled product list covers the user's day-1 crops (辣椒 / 甘藍 / 大蒜 / 青蔥 / 洋蔥 + extensions); adding a new crop is a v1.1 concern.
+- App Transport Security default settings are sufficient — `data.moa.gov.tw` serves valid HTTPS with TLS 1.2+.
