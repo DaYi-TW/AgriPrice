@@ -8,6 +8,14 @@ struct HomeView: View {
     @Query(sort: \RecentQuery.queriedAt, order: .reverse)
     private var recentRaw: [RecentQuery]
 
+    @Query private var vendorProfiles: [VendorQueryProfile]
+
+    let switchToTab: (AppTab) -> Void
+
+    init(switchToTab: @escaping (AppTab) -> Void = { _ in }) {
+        self.switchToTab = switchToTab
+    }
+
     private var favorites: [ProductItem] {
         favoritesRaw.sorted(by: HomeViewModel.favoriteSort)
     }
@@ -15,6 +23,8 @@ struct HomeView: View {
     private var recent: [RecentQuery] {
         HomeViewModel.topRecent(recentRaw)
     }
+
+    private var vendorProfile: VendorQueryProfile? { vendorProfiles.first }
 
     var body: some View {
         NavigationStack {
@@ -25,6 +35,9 @@ struct HomeView: View {
                     functionCards
                     favoritesSection
                     recentSection
+                    if let profile = vendorProfile {
+                        vendorFooterCard(profile)
+                    }
                 }
                 .padding(.horizontal, 20)
                 .padding(.vertical, 16)
@@ -163,6 +176,36 @@ struct HomeView: View {
                 }
             }
         }
+    }
+
+    private func vendorFooterCard(_ profile: VendorQueryProfile) -> some View {
+        Button(action: { switchToTab(.vendor) }) {
+            HStack {
+                Image(systemName: "doc.text.magnifyingglass")
+                    .foregroundStyle(DesignTokens.Color.brandGreen)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("上次查詢成交")
+                        .font(.caption)
+                        .foregroundStyle(DesignTokens.Color.secondaryForeground)
+                    Text("\(profile.supplierCode)-\(profile.subCode) (\(timeLabel(profile.updatedAt)))")
+                        .font(.subheadline.bold())
+                        .foregroundStyle(DesignTokens.Color.foreground)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .foregroundStyle(DesignTokens.Color.secondaryForeground)
+            }
+            .padding(14)
+            .background(Color.white)
+            .cornerRadius(DesignTokens.Radius.card)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func timeLabel(_ date: Date) -> String {
+        let fmt = DateFormatter()
+        fmt.dateFormat = "HH:mm"
+        return fmt.string(from: date)
     }
 
     private func chip(text: String) -> some View {
