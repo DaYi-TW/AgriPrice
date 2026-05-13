@@ -7,9 +7,9 @@ struct VendorLoginForm: View {
     var body: some View {
         VStack(spacing: 16) {
             VStack(spacing: 12) {
-                field(title: "供應代號", value: $viewModel.supplyNo, secure: false, keyboard: .asciiCapable)
-                field(title: "小代號",   value: $viewModel.supplySub, secure: false, keyboard: .asciiCapable)
-                field(title: "密碼",     value: $viewModel.password,  secure: true,  keyboard: .asciiCapable)
+                field(title: "供應商代號", value: $viewModel.supplyNo, secure: false, keyboard: .asciiCapable)
+                field(title: "小代號",    value: $viewModel.supplySub, secure: false, keyboard: .asciiCapable)
+                field(title: "密碼",      value: $viewModel.password,  secure: true,  keyboard: .asciiCapable)
             }
             .padding(14)
             .background(Color.white)

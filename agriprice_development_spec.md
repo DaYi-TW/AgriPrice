@@ -788,13 +788,22 @@ gcloud run deploy agriprice-api \
 
 ## 18. iOS 錯誤提示
 
-| 情境 | 顯示文字 |
-|---|---|
-| 網路失敗 | 網路連線異常，請稍後再試 |
-| AMIS 無資料 | 查無此日期區間行情 |
-| 品項錯誤 | 品項代號不存在 |
-| 登入失敗 | 供應商代號、小代號或密碼錯誤 |
-| 日期錯誤 | 開始日期不可晚於結束日期 |
+| 情境 | error_code | 顯示文字 |
+|---|---|---|
+| 網路失敗 / timeout | `NETWORK_ERROR` (iOS-only) | 網路連線異常,請稍後再試 |
+| MOA 回傳 `Data: []` | — | 查無此日期區間行情 |
+| MOA `RS != "OK"` | `INVALID_PRODUCT_CODE` | 查無此品項 |
+| MOA JSON 解析失敗 | `MOA_PARSE_FAILED` | 資料解析失敗,請稍後再試 |
+| 日期錯誤 | `INVALID_DATE_RANGE` | 開始日期不可晚於結束日期 |
+| chill-api 401(密碼錯) | `AUTH_FAILED` | 登入失敗,請確認供應商號碼/密碼 |
+| chill-api 502(AMIS 異常) | `UPSTREAM_ERROR` | 資料來源網站暫時無法存取,請稍後再試 |
+| chill-api 500 / 422 / 解析失敗 | `INTERNAL_ERROR` | 系統內部錯誤,請聯絡管理員 |
+| vendor 今日無銷售 | (success, market_data=[]) | 今天無銷售資料 |
+| 未啟用生物辨識卻開啟「記住密碼」 | — | 此裝置未設定 Face ID / Touch ID |
+| 未預期錯誤 | `UNKNOWN_ERROR` | 發生未預期錯誤,請稍後再試 |
+
+字串以 iOS 程式碼裡 `ErrorCode.userMessage`（`ios/AgriPrice/Common/ErrorCode.swift`）為準。
+新增字串必須先進這張表,再回頭改程式碼。
 
 ---
 

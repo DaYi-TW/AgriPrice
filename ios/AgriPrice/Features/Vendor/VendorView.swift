@@ -26,7 +26,7 @@ struct VendorView: View {
                     }
                 }
             }
-            .navigationTitle("成交")
+            .navigationTitle(viewModel.resultData == nil ? "今日成交查詢" : "今日成交")
             .navigationBarTitleDisplayMode(.inline)
             .onAppear {
                 viewModel.hydrate(from: context)
