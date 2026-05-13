@@ -10,21 +10,30 @@ All user-visible data is persisted on the iPhone via SwiftData. There is **no ba
 
 **When to revisit**: Only if (a) the user base outgrows TestFlight (≥ 80 distinct users) AND a feature genuinely cannot be done on-device (e.g. cross-device sync), OR (b) an upstream provider adds auth/rate-limits that require a server-side secret. Until then, on-device wins.
 
-### II. No Backend in v1
+### II. No Backend Code in This Repo
 
-Everything ships in the iOS app. ROC ↔ ISO date conversion, MOA JSON decoding, the unified `{success, data, error}` envelope shape (used for internal error typing only), and any future AMIS scraping all live in Swift.
+This repository contains the iOS app only. Backend code — if any — lives in **a separate repository** and is treated as an external dependency, exactly like MOA's open-data service.
 
-**Why**: Fewest moving parts. One repo, one deploy target, one place to ship a fix. If an upstream changes shape, the iOS app ships an update; there is no separate service to also redeploy.
+**What this repo never contains**: a sibling `api/` directory, FastAPI / Flask / Node sources, Cloud Run / Lambda / App Engine deploy manifests, GCP / AWS infrastructure-as-code.
 
-**Forbidden in v1**: any sibling `api/` directory, any FastAPI / Flask / Node service, any Cloud Run / Lambda / App Engine deploy artifact. If a future feature genuinely needs a server (e.g. credentials that cannot live on-device), it requires a constitution amendment first.
+**What iOS may call**:
+
+- MOA open-data API (public, no auth) — used by feature 001.
+- The `chill-api` Cloud Run service (separately maintained at `https://chill-api-240848983153.asia-east1.run.app/`) — used by feature 002 for vendor scraping of AMIS. iOS treats this as a black-box upstream: it owns the request/response shape contract and we adapt to its `error_code` values.
+
+**Why**: Fewest moving parts in this repo. The vendor data source (AMIS) needs login + HTML scraping that genuinely cannot be done on-device, so a service is unavoidable — but that service is somebody else's problem; it ships on its own cadence, and we only consume its public API.
+
+**When iOS needs a new external service**: capture the URL, request/response shape, and error codes in that feature's `plan.md`. Do not commit the service's code here.
 
 ### III. Credentials Live Only in Keychain (NON-NEGOTIABLE)
 
-Vendor passwords (deferred to a future feature once the AMIS vendor API is figured out) are subject to a strict storage rule:
+Vendor passwords (供應代號 + 小代號 + 密碼; the password specifically) are subject to a strict storage rule:
 
-- **Allowed**: iOS Keychain with biometry-gated access (LAContext required for the "記住密碼" opt-in).
-- **Forbidden everywhere else**: `UserDefaults`, SwiftData, plist files, log lines (any level), crash reports, analytics events.
+- **Allowed**: iOS Keychain only, with biometry-gated access (`SecAccessControl` with `.biometryCurrentSet` + `kSecAttrAccessibleWhenUnlockedThisDeviceOnly`). The user must opt in with the "記住密碼" toggle; reading the password back requires Face ID / Touch ID via `LAContext`.
+- **Forbidden everywhere else**: `UserDefaults`, SwiftData, plist files, log lines (any level), crash reports, analytics events. Never `print(password)`, never `NSLog`, never `os_log`.
+- The non-secret identifiers (供應代號 / 小代號) MAY be persisted in SwiftData (`VendorQueryProfile`) so the login form can pre-fill — but the password is always Keychain-only.
 - Opting out of "記住密碼" MUST delete the Keychain entry **immediately**, not on next launch.
+- The chill-api response is also off-limits for the password: the request body carries it, the response never echoes it. iOS must not log the request body.
 
 **Why**: Suppliers are trusting AgriPrice with credentials that grant access to their daily revenue data. A leak would be unrecoverable for trust, and there is no business reason that justifies persisting the password anywhere except the user's own biometry-gated Keychain.
 
@@ -93,9 +102,10 @@ Amendments require:
 
 Future Claude instances and contributors: when a request would violate a non-negotiable principle (I, III), refuse and surface the conflict rather than silently working around it.
 
-**Version**: 2.0.0 | **Ratified**: 2026-05-13 | **Last Amended**: 2026-05-13
+**Version**: 2.1.0 | **Ratified**: 2026-05-13 | **Last Amended**: 2026-05-13
 
 ### Changelog
 
-- **2.0.0** (2026-05-13) — Removed backend entirely. Principle II "Stateless Proxy" replaced with "No Backend in v1". iOS calls MOA directly via URLSession. Vendor credentials principle retained for the future vendor feature, deferred until the AMIS vendor API is figured out.
+- **2.1.0** (2026-05-13) — Principle II reworded: "No Backend in v1" → "No Backend Code in This Repo". The vendor feature (002) needs AMIS scraping which can't be done on-device, so a separately-maintained `chill-api` Cloud Run service is consumed as an external dependency. Principle III tightened with concrete Keychain access flags and a clarification that 供應代號/小代號 may live in SwiftData, but password is Keychain-only with biometry.
+- **2.0.0** (2026-05-13) — Removed backend entirely from this repo. Principle II "Stateless Proxy" replaced with "No Backend in v1". iOS calls MOA directly via URLSession.
 - **1.0.0** (2026-05-13) — Initial ratification.

@@ -46,16 +46,15 @@ The legacy dev spec is **not deprecated** — it's still the source for shapes a
 | # | Branch | Spec |
 |---|---|---|
 | 001 | `001-market-price-query` | Query market prices across all markets by product code + date range. iOS calls MOA directly. (MarketView, TrendView, MOAClient) |
+| 002 | `002-vendor-transactions` | Supplier login + today's transactions. iOS calls the `chill-api` Cloud Run service (separately maintained). |
 | 003 | `003-ios-shell` | iOS app shell: 4-tab navigation, Home screen, SwiftData container. **Shipped.** |
-
-A "002 vendor transactions" feature is deferred — the AMIS vendor API is not yet figured out. The Vendor tab is a stub in 003 and stays that way until the upstream is understood.
 
 ## Constitution Highlights (Non-Negotiable)
 
 Read `.specify/memory/constitution.md` in full before any non-trivial change. The principles that have killed past designs:
 
 - **On-Device First**: no Cloud SQL, no Firestore, no server-side user data. SwiftData on iPhone is the only persistence.
-- **No Backend in v1**: iOS calls MOA directly via URLSession. There is no FastAPI proxy, no Cloud Run service, no sibling `api/` directory. ROC date conversion, JSON decoding, and error mapping all live in Swift.
+- **No Backend Code in This Repo**: iOS calls upstream services directly via URLSession. MOA open-data for market prices (001); `chill-api` Cloud Run for vendor scraping (002, separately maintained — not in this repo). There is no `api/` directory and no plan to add one.
 - **Keychain-Only Credentials**: when the vendor feature lands, vendor passwords never touch UserDefaults, SwiftData, or any log line at any level. Keychain entries are biometry-gated. Opt-out deletes immediately.
 - **iOS 17 / SwiftUI / SwiftData / Swift Charts / URLSession** only. No third-party UI, persistence, charting, or networking libraries.
 
@@ -67,18 +66,22 @@ If a user request would violate a non-negotiable principle, surface the conflict
 SwiftUI iOS App (TestFlight only in v1)
    │
    ├─ SwiftData       (ProductItem, MarketPriceRecord, RecentQuery, VendorQueryProfile — see dev spec §7)
-   ├─ Keychain        (vendor password, biometry-gated, opt-in only — deferred feature)
+   ├─ Keychain        (vendor password, biometry-gated, opt-in only)
    ├─ Swift Charts    (trend line + volume bars)
    └─ URLSession      (async/await)
         │
-        └─► MOA open-data API (https://data.moa.gov.tw/api/v1/AgriProductsTransType/)
+        ├─► MOA open-data API           (market prices — feature 001)
+        │   https://data.moa.gov.tw/api/v1/AgriProductsTransType/
+        │
+        └─► chill-api Cloud Run service (vendor scraping — feature 002, separately maintained)
+            https://chill-api-240848983153.asia-east1.run.app/api/scrape
 ```
 
-No backend service exists. iOS handles ROC ↔ ISO date conversion, MOA JSON decoding, and error mapping locally.
+No backend code lives in this repo. iOS handles ROC ↔ ISO date conversion, MOA JSON decoding, and error mapping locally. The chill-api service is treated as an external black box — its request/response shape is documented in `specs/002-vendor-transactions/data-model.md`.
 
 ### Bottom tab bar — exactly four tabs
 
-`首頁 (Home) / 行情 (Market) / 成交 (Vendor) / 趨勢 (Trend)`. Not three, not five. The 成交 tab currently shows a "尚未開放" stub until the vendor data source is figured out.
+`首頁 (Home) / 行情 (Market) / 成交 (Vendor) / 趨勢 (Trend)`. Not three, not five.
 
 ## Data Sources
 
@@ -100,9 +103,36 @@ Verified response shape (live, 2026-05-13):
 
 When `Data` is `[]` (no transactions for the date range), show the friendly empty-state, not an error.
 
-### Vendor transactions — deferred
+### Vendor transactions — chill-api Cloud Run service
 
-The AMIS vendor query flow needs login + HTML scraping, and the upstream URL / form fields aren't documented yet. The Vendor tab is a stub in 003. When the upstream is figured out, the vendor feature ships — and may force re-opening Constitution II if a proxy turns out to be unavoidable.
+```
+POST https://chill-api-240848983153.asia-east1.run.app/api/scrape
+Content-Type: application/json
+
+{"credentials": {"supply_no": "...", "supply_sub": "...", "password": "..."}}
+```
+
+Response envelope (success or error, both 200/401/500/502):
+
+```json
+{
+  "success": true,
+  "message": "數據獲取成功" | "今天無銷售資料",
+  "timestamp": "2026-05-13T13:54:49.495366",
+  "data": {"total_profit": 777, "year_total": 333666, "market_data": [...]},
+  "error_code": null
+}
+```
+
+| HTTP | error_code     | Trigger                                                    |
+|------|----------------|------------------------------------------------------------|
+| 200  | null           | Success (data populated or `market_data: []`)              |
+| 401  | AUTH_FAILED    | AMIS rejected credentials                                  |
+| 502  | UPSTREAM_ERROR | AMIS timeout / scraper failed                              |
+| 500  | INTERNAL_ERROR | Anything else                                              |
+| 422  | (FastAPI raw)  | `{"detail":[...]}` — malformed request body; treat as INTERNAL_ERROR client-side |
+
+The service is maintained in a separate repo. When its shape changes, this app ships an update. Never log the request body (it carries the password).
 
 ## Internal error envelope
 
@@ -123,6 +153,6 @@ enum APIResult<T> {
 
 ## Known Gaps
 
-- The AMIS vendor-query upstream (URL, form fields, auth flow) is unknown. A vendor feature can't be specced until that's reverse-engineered.
+- The chill-api service's repo / contact / on-call story is undocumented here. If it changes shape, the only signal is iOS errors. Capture the owner in `specs/002-vendor-transactions/plan.md` if you find out.
 - No CI yet. When the first code lands in a buildable Xcode project, add a workflow that runs `xcodebuild test` and enforces that every new feature directory under `specs/` has `spec.md`.
 - No Xcode project file is committed. The first macOS contributor wires `ios/AgriPrice/` into a fresh project — `specs/003-ios-shell/quickstart.md` documents the steps.
