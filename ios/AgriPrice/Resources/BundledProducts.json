@@ -1,0 +1,12 @@
+[
+  { "code": "FV4", "name": "辣椒 朝天椒", "category": "辣椒" },
+  { "code": "FV1", "name": "辣椒 紅小",   "category": "辣椒" },
+  { "code": "FV2", "name": "辣椒 青小",   "category": "辣椒" },
+  { "code": "FV5", "name": "辣椒 青龍",   "category": "辣椒" },
+  { "code": "FV6", "name": "辣椒 糯米椒", "category": "辣椒" },
+  { "code": "LA1", "name": "甘藍 初秋",   "category": "甘藍" },
+  { "code": "LA2", "name": "甘藍 改良種", "category": "甘藍" },
+  { "code": "SG5", "name": "大蒜 蒜頭",   "category": "大蒜" },
+  { "code": "SE1", "name": "青蔥 日蔥",   "category": "青蔥" },
+  { "code": "SD1", "name": "洋蔥 本產",   "category": "洋蔥" }
+]
