@@ -4,25 +4,26 @@
 
 ### I. On-Device First (NON-NEGOTIABLE)
 
-All user-visible data is persisted on the iPhone via SwiftData. The backend stores **nothing** about users — no profiles, no query history, no favorites, no credentials. Cloud SQL and Firestore are explicitly forbidden in v1. The single allowed server-side state is **transient request memory** while a proxy call is in flight.
+All user-visible data is persisted on the iPhone via SwiftData. There is **no backend** in v1 — no Cloud Run, no Cloud SQL, no Firestore, no proxy. The iOS app calls upstream public APIs (MOA open-data) directly via `URLSession`.
 
-**Why**: The product is built for a small family/friends cohort. Adding a server-side database would multiply GCP cost, introduce backup/permission burden, and create a compliance surface that an iPhone-local design avoids entirely.
+**Why**: The product is built for a small family/friends cohort. Adding a server-side database would multiply GCP cost, introduce backup/permission burden, and create a compliance surface that an iPhone-local design avoids entirely. The MOA open-data endpoint is public and free, so a proxy adds latency and an operational burden without buying anything.
 
-**When to revisit**: Only if the user base outgrows TestFlight (≥ 80 distinct users) AND a feature genuinely cannot be done on-device (e.g. cross-device sync). Until both are true, on-device wins.
+**When to revisit**: Only if (a) the user base outgrows TestFlight (≥ 80 distinct users) AND a feature genuinely cannot be done on-device (e.g. cross-device sync), OR (b) an upstream provider adds auth/rate-limits that require a server-side secret. Until then, on-device wins.
 
-### II. Stateless Proxy
+### II. No Backend in v1
 
-The FastAPI service on Cloud Run is a **stateless adapter** that fetches from MOA / AMIS, parses, normalizes to the unified `{success, data, error}` envelope (dev spec §9), and returns. No DB. No cache layer beyond per-request in-memory. No background jobs. No queues.
+Everything ships in the iOS app. ROC ↔ ISO date conversion, MOA JSON decoding, the unified `{success, data, error}` envelope shape (used for internal error typing only), and any future AMIS scraping all live in Swift.
 
-**Why**: Statelessness is the cheapest way to keep Cloud Run safe to redeploy, easy to reason about, and impossible to leak vendor credentials from.
+**Why**: Fewest moving parts. One repo, one deploy target, one place to ship a fix. If an upstream changes shape, the iOS app ships an update; there is no separate service to also redeploy.
+
+**Forbidden in v1**: any sibling `api/` directory, any FastAPI / Flask / Node service, any Cloud Run / Lambda / App Engine deploy artifact. If a future feature genuinely needs a server (e.g. credentials that cannot live on-device), it requires a constitution amendment first.
 
 ### III. Credentials Live Only in Keychain (NON-NEGOTIABLE)
 
-Vendor passwords are subject to a strict storage rule:
+Vendor passwords (deferred to a future feature once the AMIS vendor API is figured out) are subject to a strict storage rule:
 
 - **Allowed**: iOS Keychain with biometry-gated access (LAContext required for the "記住密碼" opt-in).
-- **Forbidden everywhere else**: `UserDefaults`, SwiftData, plist files, log lines (any level), backend DB, backend cache, backend temp files, request log middleware, error reports, crash reports, analytics events.
-- The proxy MUST redact `password` → `***` in every log line, including request-replay debug logs.
+- **Forbidden everywhere else**: `UserDefaults`, SwiftData, plist files, log lines (any level), crash reports, analytics events.
 - Opting out of "記住密碼" MUST delete the Keychain entry **immediately**, not on next launch.
 
 **Why**: Suppliers are trusting AgriPrice with credentials that grant access to their daily revenue data. A leak would be unrecoverable for trust, and there is no business reason that justifies persisting the password anywhere except the user's own biometry-gated Keychain.
@@ -48,7 +49,7 @@ The iOS app's tech stack is fixed:
 
 ### VI. Friendly Error States Over Raw Errors
 
-The user never sees an HTTP code, a stack trace, or an upstream error page. Every error path resolves to one of the strings defined in dev spec §18 (`網路連線異常,請稍後再試`, `查無此日期區間行情`, `供應商代號、小代號或密碼錯誤`, …). New error states require a new entry in §18, not a freeform string.
+The user never sees an HTTP code, a stack trace, or an upstream error page. Every error path resolves to one of the zh-Hant strings defined in dev spec §18 (`網路連線異常,請稍後再試`, `查無此日期區間行情`, `供應商代號、小代號或密碼錯誤`, …). New error states require a new entry in §18, not a freeform string.
 
 ### VII. Simplicity Over Features
 
@@ -56,11 +57,10 @@ When in doubt: ship less. Defaults beat configuration. A hard-coded today–toda
 
 ## Security Requirements
 
-- **No vendor credential server-side**: see Principle III.
-- **HTTPS-only for proxy ↔ MOA / AMIS**: no plaintext upstream calls even in dev.
+- **No vendor credential off-device**: see Principle III.
+- **HTTPS-only for upstream calls**: no plaintext calls to MOA / AMIS even in dev. ATS exceptions are not allowed.
 - **No tracking SDKs**: no Firebase Analytics, no Sentry that captures payloads, no Crashlytics with PII. Apple's built-in TestFlight crash logs only.
-- **API rate-limiting at the proxy**: a single Cloud Run instance with default concurrency is enough at v1 scale; if abuse becomes a concern, add an IP-based limiter at the proxy, not at MOA.
-- **Secrets management**: any Cloud Run env vars (e.g. AMIS scrape selectors that might change) live in GCP Secret Manager, not in the repo or in `cloudbuild.yaml` literals.
+- **No upstream secrets in v1**: MOA open-data needs no API key. If a future upstream introduces one, that key cannot live in the app binary — at that point Principle II must be revisited (a proxy becomes unavoidable).
 
 ## Development Workflow
 
@@ -73,7 +73,7 @@ When in doubt: ship less. Defaults beat configuration. A hard-coded today–toda
 
 ### Test-first for protocol-shaped code
 
-API endpoint contracts, MOA response parsers, and AMIS vendor scrapers MUST have unit tests authored **before** the implementation. UI views are exempt (manual TestFlight check is acceptable for SwiftUI).
+MOA response parsers, ROC ↔ ISO date converters, and any future AMIS HTML scrapers MUST have unit tests authored **before** the implementation. UI views are exempt (manual TestFlight check is acceptable for SwiftUI).
 
 ### Commits and branches
 
@@ -93,4 +93,9 @@ Amendments require:
 
 Future Claude instances and contributors: when a request would violate a non-negotiable principle (I, III), refuse and surface the conflict rather than silently working around it.
 
-**Version**: 1.0.0 | **Ratified**: 2026-05-13 | **Last Amended**: 2026-05-13
+**Version**: 2.0.0 | **Ratified**: 2026-05-13 | **Last Amended**: 2026-05-13
+
+### Changelog
+
+- **2.0.0** (2026-05-13) — Removed backend entirely. Principle II "Stateless Proxy" replaced with "No Backend in v1". iOS calls MOA directly via URLSession. Vendor credentials principle retained for the future vendor feature, deferred until the AMIS vendor API is figured out.
+- **1.0.0** (2026-05-13) — Initial ratification.
