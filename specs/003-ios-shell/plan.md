@@ -24,7 +24,7 @@ Stand up the iOS app skeleton so features 001 and 002 have somewhere to plug int
 | Principle | Status | Notes |
 |---|---|---|
 | I. On-Device First | PASS | All shell state is SwiftData. No backend reach in 003. |
-| II. Stateless Proxy | N/A | No backend touched in this feature. |
+| II. No Backend in v1 | PASS | No backend code; iOS-only feature. |
 | III. Keychain-Only Credentials | PASS | 003 does not handle vendor credentials. Stubs the Vendor tab; 002 owns Keychain wiring. |
 | IV. Spec-Driven Development | PASS | This plan + tasks.md will gate implementation. |
 | V. iOS 17 + SwiftUI + SwiftData + Swift Charts | PASS | Stack matches exactly. Swift Charts is imported but unused in 003. |
@@ -80,7 +80,7 @@ ios/
 └── AgriPrice.xcodeproj/             # generated locally; NOT committed in 003
 ```
 
-**Structure Decision**: Top-level `ios/` for the iOS app. A sibling `api/` directory will be added by feature 001 for FastAPI. The Xcode project file is NOT committed because this dev environment is Windows (no Xcode); a future macOS contributor regenerates it from the Swift sources or via Tuist/XcodeGen (out of scope for v1; sources are committed as a Swift Package–friendly layout).
+**Structure Decision**: Top-level `ios/` for the iOS app. **No sibling `api/` directory** — Constitution v2.0.0 forbids a backend in v1. The Xcode project file is NOT committed because this dev environment is Windows (no Xcode); a future macOS contributor regenerates it from the Swift sources or via Tuist/XcodeGen (out of scope for v1; sources are committed as a Swift Package–friendly layout).
 
 ## Phase 0: Research
 

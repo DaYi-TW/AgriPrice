@@ -4,9 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository Status
 
-This repository is a **standalone git repo** (`main` branch) initialized 2026-05-13. It currently contains specs and scaffolding only — no Swift or Python source code yet. The implementation is planned as two separate repos in the future: `agriprice-ios` and `agriprice-api`.
+This repository is a **standalone git repo** (`main` branch) initialized 2026-05-13. It contains specs, scaffolding, and an iOS Swift source tree under `ios/AgriPrice/` — but **no Xcode project is committed** (the dev environment is Windows; a macOS contributor wires the sources into Xcode 15+; see `specs/003-ios-shell/quickstart.md`).
 
-Build/test/lint commands: **none yet** — there is no Swift toolchain, no `package.json`, no `requirements.txt`, no Xcode project. Do not invent commands; if a future spec adds source code, this section needs updating.
+There is **no backend code in this repo and no plan to add one in v1**. The iOS app talks directly to the MOA open-data API via `URLSession`.
+
+Build/test/lint commands: not runnable in this Windows dev environment — Swift code is type-checked by inspection only. Once the project lands in Xcode, `xcodebuild test -scheme AgriPrice -destination 'platform=iOS Simulator,name=iPhone 15'` is the test command.
 
 ## Spec-Driven Workflow (GitHub Spec Kit 0.7.4)
 
@@ -43,19 +45,18 @@ The legacy dev spec is **not deprecated** — it's still the source for shapes a
 
 | # | Branch | Spec |
 |---|---|---|
-| 001 | `001-market-price-query` | Query market prices across all markets by product code + date range (MarketView, TrendView, `/api/v1/market-prices`) |
-| 002 | `002-vendor-transactions` | Vendor login + today's transactions (VendorView, `/api/v1/vendor/transactions`) |
-| 003 | `003-ios-shell` | iOS app shell: 4-tab navigation, Home screen, SwiftData container |
+| 001 | `001-market-price-query` | Query market prices across all markets by product code + date range. iOS calls MOA directly. (MarketView, TrendView, MOAClient) |
+| 003 | `003-ios-shell` | iOS app shell: 4-tab navigation, Home screen, SwiftData container. **Shipped.** |
 
-Each lives on its own branch with `specs/NNN-*/spec.md` committed. None have `plan.md` or `tasks.md` yet.
+A "002 vendor transactions" feature is deferred — the AMIS vendor API is not yet figured out. The Vendor tab is a stub in 003 and stays that way until the upstream is understood.
 
 ## Constitution Highlights (Non-Negotiable)
 
 Read `.specify/memory/constitution.md` in full before any non-trivial change. The principles that have killed past designs:
 
 - **On-Device First**: no Cloud SQL, no Firestore, no server-side user data. SwiftData on iPhone is the only persistence.
-- **Stateless Proxy**: FastAPI on Cloud Run is a pure adapter. No DB, no cache, no background jobs.
-- **Keychain-Only Credentials**: vendor passwords never touch UserDefaults, SwiftData, or any log line at any level. Keychain entries are biometry-gated. Opt-out deletes immediately.
+- **No Backend in v1**: iOS calls MOA directly via URLSession. There is no FastAPI proxy, no Cloud Run service, no sibling `api/` directory. ROC date conversion, JSON decoding, and error mapping all live in Swift.
+- **Keychain-Only Credentials**: when the vendor feature lands, vendor passwords never touch UserDefaults, SwiftData, or any log line at any level. Keychain entries are biometry-gated. Opt-out deletes immediately.
 - **iOS 17 / SwiftUI / SwiftData / Swift Charts / URLSession** only. No third-party UI, persistence, charting, or networking libraries.
 
 If a user request would violate a non-negotiable principle, surface the conflict rather than silently working around it.
@@ -66,50 +67,55 @@ If a user request would violate a non-negotiable principle, surface the conflict
 SwiftUI iOS App (TestFlight only in v1)
    │
    ├─ SwiftData       (ProductItem, MarketPriceRecord, RecentQuery, VendorQueryProfile — see dev spec §7)
-   ├─ Keychain        (vendor password, biometry-gated, opt-in only)
+   ├─ Keychain        (vendor password, biometry-gated, opt-in only — deferred feature)
    ├─ Swift Charts    (trend line + volume bars)
    └─ URLSession      (async/await)
         │
-        ▼
-   Cloud Run FastAPI (stateless proxy)
-        │
-        ├─►  MOA open-data API  (market prices)
-        └─►  AMIS website scrape (vendor transactions)
+        └─► MOA open-data API (https://data.moa.gov.tw/api/v1/AgriProductsTransType/)
 ```
+
+No backend service exists. iOS handles ROC ↔ ISO date conversion, MOA JSON decoding, and error mapping locally.
 
 ### Bottom tab bar — exactly four tabs
 
-`首頁 (Home) / 行情 (Market) / 成交 (Vendor) / 趨勢 (Trend)`. Not three, not five.
+`首頁 (Home) / 行情 (Market) / 成交 (Vendor) / 趨勢 (Trend)`. Not three, not five. The 成交 tab currently shows a "尚未開放" stub until the vendor data source is figured out.
 
 ## Data Sources
 
-### Market prices — MOA open-data API
+### Market prices — MOA open-data API (called directly from iOS)
 
 ```
 https://data.moa.gov.tw/api/v1/AgriProductsTransType/?Start_time=107.07.01&End_time=107.07.10&CropCode=FV4
 ```
 
-Two non-obvious details the proxy must handle:
+Two non-obvious details Swift code must handle:
 
-- **Dates are ROC calendar with dots** (民國年.月.日). `107.07.01` = 2018-07-01. Convert at the proxy boundary; the iOS app only ever sees ISO `YYYY-MM-DD`.
-- **Upstream parameter is `CropCode`**, not `product_code`. The internal API uses `product_code` and the proxy maps it.
+- **Dates are ROC calendar with dots** (民國年.月.日). `107.07.01` = 2018-07-01. The conversion (`ISO → ROC` on the request, `ROC → ISO` on the response) lives in a Swift helper. UI code only ever touches `Date` / ISO `YYYY-MM-DD`.
+- **Query parameter is `CropCode`** with `FV4` etc. — capitalized as shown. Don't lowercase it; the upstream is case-sensitive in our experience.
 
-The dev spec sometimes refers generically to "AMIS" as the price upstream; the concrete endpoint is this MOA URL.
-
-### Vendor transactions — AMIS web scrape
-
-No public API. The proxy must POST to the AMIS vendor query page and parse the HTML response. If AMIS adds captcha or 2FA, this flow is blocked and the user is told to use the website. The proxy is the **only** place that knows how to parse AMIS HTML — when AMIS changes its markup, only the proxy ships a fix.
-
-## Unified API Envelope
-
-Every endpoint returns this shape:
-
+Verified response shape (live, 2026-05-13):
 ```json
-{ "success": true,  "data": { ... }, "error": null }
-{ "success": false, "data": null,    "error": { "code": "...", "message": "..." } }
+{"RS":"OK","Data":[{"TransDate":"107.07.02","CropCode":"FV4","CropName":"辣椒-朝天椒","MarketCode":"104","MarketName":"台北一","Upper_Price":146.7,"Middle_Price":120,"Lower_Price":100,"Avg_Price":121.7,"Trans_Quantity":2080}, ...]}
 ```
 
-Error codes live in dev spec §17. User-visible strings live in §18. **Do not invent new codes or strings inline** — add them to the dev spec first.
+When `Data` is `[]` (no transactions for the date range), show the friendly empty-state, not an error.
+
+### Vendor transactions — deferred
+
+The AMIS vendor query flow needs login + HTML scraping, and the upstream URL / form fields aren't documented yet. The Vendor tab is a stub in 003. When the upstream is figured out, the vendor feature ships — and may force re-opening Constitution II if a proxy turns out to be unavoidable.
+
+## Internal error envelope
+
+For consistency with dev spec §17/§18, the iOS layer wraps every async operation in this shape:
+
+```swift
+enum APIResult<T> {
+    case success(T)
+    case failure(code: ErrorCode, message: String)
+}
+```
+
+`ErrorCode` strings come from dev spec §17. User-visible messages come from §18. **Do not invent new codes or strings inline** — add them to the dev spec first.
 
 ## HTML Mockup
 
@@ -117,5 +123,6 @@ Error codes live in dev spec §17. User-visible strings live in §18. **Do not i
 
 ## Known Gaps
 
-- The AMIS vendor-query HTML endpoint URL and form field names are **not yet documented anywhere in this repo**. Capture them in feature 002's `plan.md` before implementation starts.
-- No CI yet. When the first code lands, add a workflow that runs `xcodebuild` + `pytest` and enforces that every new feature directory under `specs/` has `spec.md`.
+- The AMIS vendor-query upstream (URL, form fields, auth flow) is unknown. A vendor feature can't be specced until that's reverse-engineered.
+- No CI yet. When the first code lands in a buildable Xcode project, add a workflow that runs `xcodebuild test` and enforces that every new feature directory under `specs/` has `spec.md`.
+- No Xcode project file is committed. The first macOS contributor wires `ios/AgriPrice/` into a fresh project — `specs/003-ios-shell/quickstart.md` documents the steps.
