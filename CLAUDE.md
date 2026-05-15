@@ -4,11 +4,21 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository Status
 
-This repository is a **standalone git repo** (`main` branch) initialized 2026-05-13. It contains specs, scaffolding, and an iOS Swift source tree under `ios/AgriPrice/` — but **no Xcode project is committed** (the dev environment is Windows; a macOS contributor wires the sources into Xcode 15+; see `specs/003-ios-shell/quickstart.md`).
+This repository is a **standalone git repo** (`main` branch) initialized 2026-05-13. It contains specs, scaffolding, and an iOS Swift source tree under `ios/AgriPrice/` — but **no Xcode project is committed** (the dev environment is Windows; a macOS contributor wires the sources into Xcode 15+ — see `README.md` § "Xcode setup" for the seven-step procedure, and `specs/003-ios-shell/quickstart.md` for smoke checks once it builds).
 
 There is **no backend code in this repo and no plan to add one in v1**. The iOS app talks directly to the MOA open-data API via `URLSession`.
 
-Build/test/lint commands: not runnable in this Windows dev environment — Swift code is type-checked by inspection only. Once the project lands in Xcode, `xcodebuild test -scheme AgriPrice -destination 'platform=iOS Simulator,name=iPhone 15'` is the test command.
+Build/test/lint commands: not runnable in this Windows dev environment — Swift code is type-checked by inspection only. Once the project lands in Xcode, the full test command is:
+
+```
+xcodebuild test -scheme AgriPrice -destination 'platform=iOS Simulator,name=iPhone 15'
+```
+
+XCTest sources live in `ios/AgriPriceTests/`: `ROCDateFormatterTests`, `MOAClientParsingTests`, `MarketViewModelTests`, `VendorAPIClientParsingTests`, `VendorViewModelTests`, `HomeViewModelTests`. Run one at a time with `-only-testing`, e.g.:
+
+```
+xcodebuild test -scheme AgriPrice -destination 'platform=iOS Simulator,name=iPhone 15' -only-testing:AgriPriceTests/ROCDateFormatterTests
+```
 
 ## Spec-Driven Workflow (GitHub Spec Kit 0.7.4)
 
@@ -43,11 +53,11 @@ The legacy dev spec is **not deprecated** — it's still the source for shapes a
 
 ## Existing Features
 
-| # | Branch | Spec |
-|---|---|---|
-| 001 | `001-market-price-query` | Query market prices across all markets by product code + date range. iOS calls MOA directly. (MarketView, TrendView, MOAClient) |
-| 002 | `002-vendor-transactions` | Supplier login + today's transactions. iOS calls the `chill-api` Cloud Run service (separately maintained). |
-| 003 | `003-ios-shell` | iOS app shell: 4-tab navigation, Home screen, SwiftData container. **Shipped.** |
+| # | Branch | Status | Spec |
+|---|---|---|---|
+| 001 | `001-market-price-query` | Shipped | Query market prices across all markets by product code + date range. iOS calls MOA directly. (MarketView, TrendView, MOAClient) |
+| 002 | `002-vendor-transactions` | Shipped | Supplier login + today's transactions. iOS calls the `chill-api` Cloud Run service (separately maintained). |
+| 003 | `003-ios-shell` | Shipped | iOS app shell: 4-tab navigation, Home screen, SwiftData container. |
 
 ## Constitution Highlights (Non-Negotiable)
 
@@ -55,7 +65,7 @@ Read `.specify/memory/constitution.md` in full before any non-trivial change. Th
 
 - **On-Device First**: no Cloud SQL, no Firestore, no server-side user data. SwiftData on iPhone is the only persistence.
 - **No Backend Code in This Repo**: iOS calls upstream services directly via URLSession. MOA open-data for market prices (001); `chill-api` Cloud Run for vendor scraping (002, separately maintained — not in this repo). There is no `api/` directory and no plan to add one.
-- **Keychain-Only Credentials**: when the vendor feature lands, vendor passwords never touch UserDefaults, SwiftData, or any log line at any level. Keychain entries are biometry-gated. Opt-out deletes immediately.
+- **Keychain-Only Credentials**: vendor passwords (feature 002, shipped) live only in biometry-gated Keychain entries. They never touch UserDefaults, SwiftData, or any log line at any level. Opt-out deletes immediately. See `ios/AgriPrice/Common/KeychainStore.swift` and `BiometryAvailability.swift`.
 - **iOS 17 / SwiftUI / SwiftData / Swift Charts / URLSession** only. No third-party UI, persistence, charting, or networking libraries.
 
 If a user request would violate a non-negotiable principle, surface the conflict rather than silently working around it.
@@ -78,6 +88,21 @@ SwiftUI iOS App (TestFlight only in v1)
 ```
 
 No backend code lives in this repo. iOS handles ROC ↔ ISO date conversion, MOA JSON decoding, and error mapping locally. The chill-api service is treated as an external black box — its request/response shape is documented in `specs/002-vendor-transactions/data-model.md`.
+
+### iOS source-tree map
+
+```
+ios/AgriPrice/
+├── AgriPriceApp.swift         # @main, SwiftData ModelContainer wiring
+├── AppShell.swift             # TabView with the four tabs
+├── Models/                    # SwiftData @Model types (dev spec §7)
+├── Features/                  # One folder per tab: Home/, Market/, Vendor/, Trend/
+│                              #   each ships its own View + ViewModel
+├── Common/                    # APIResult, ErrorCode, DesignTokens, ROCDateFormatter,
+│                              #   KeychainStore, BiometryAvailability, ErrorScreen
+├── Networking/                # MOAClient, VendorAPIClient + their response DTOs
+└── Resources/                 # BundledProducts.json (must be in Copy Bundle Resources)
+```
 
 ### Bottom tab bar — exactly four tabs
 
@@ -155,4 +180,4 @@ enum APIResult<T> {
 
 - The chill-api service's repo / contact / on-call story is undocumented here. If it changes shape, the only signal is iOS errors. Capture the owner in `specs/002-vendor-transactions/plan.md` if you find out.
 - No CI yet. When the first code lands in a buildable Xcode project, add a workflow that runs `xcodebuild test` and enforces that every new feature directory under `specs/` has `spec.md`.
-- No Xcode project file is committed. The first macOS contributor wires `ios/AgriPrice/` into a fresh project — `specs/003-ios-shell/quickstart.md` documents the steps.
+- No Xcode project file is committed. The first macOS contributor wires `ios/AgriPrice/` into a fresh project — see `README.md` § "Xcode setup" for the seven-step procedure (`INFOPLIST_FILE` build setting, adding `BundledProducts.json` to Copy Bundle Resources, creating the `AgriPriceTests` target). `specs/003-ios-shell/quickstart.md` covers smoke checks once it builds.
